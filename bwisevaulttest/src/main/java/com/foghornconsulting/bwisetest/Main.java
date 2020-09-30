@@ -39,7 +39,7 @@ public class Main {
                                 "</style>" +
                                 "</head>" +
                                 "<body>" +
-                                "<h1>Hello Tomcat Netbeans World v 1.10-SNAPSHOT!!</h1>" +
+                                "<h1>Hello Tomcat Netbeans World v 1.16-SNAPSHOT!!</h1>" +
                                 "<br></br>" +
                                 "<h2>People Table</h2>" +
                                 "<table style=\"width:40%\">" +

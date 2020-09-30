@@ -1,10 +1,7 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.foghornconsulting.bwisetest;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -14,6 +11,8 @@ import java.util.ArrayList;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
@@ -45,8 +44,31 @@ public class People implements Serializable {
         PreparedStatement stmt;
         String sql = "";
         try {
-            String vaultToken = System.getProperty("VAULT_TOKEN");
-            HttpGet request = new HttpGet("https://vault.aws.bradandmarsha.com/v1/database/creds/my-role");
+            String vaultDomain = System.getProperty("VAULT_DOMAIN");
+            String vaultLoginUrl = String.format("https://%s/v1/auth/aws/login", vaultDomain);
+            AwsIamLogin awsIamLogin = new AwsIamLogin();
+            JsonObject postData = new JsonObject();
+            postData.addProperty("iam_http_request_method", "POST");
+            postData.addProperty("iam_request_url", awsIamLogin.getBase64EncodedRequestUrl());
+            postData.addProperty("iam_request_body", awsIamLogin.getBase64EncodedRequestBody());
+            postData.addProperty("iam_request_headers", awsIamLogin.getBase64EncodedRequestHeaders(vaultDomain));
+            HttpPost loginRequest = new HttpPost(vaultLoginUrl);
+            final CloseableHttpClient postClient = HttpClients.createDefault();
+            loginRequest.setEntity(new StringEntity(postData.toString()));
+            loginRequest.setHeader("Accept", "application/json");
+            loginRequest.setHeader("Content-type", "application/json");
+            String vaultToken = "";
+            try (CloseableHttpResponse response = postClient.execute(loginRequest)) {
+                HttpEntity entity = response.getEntity();
+                if (entity != null) {
+                    String responseString = EntityUtils.toString(entity);
+                    JsonParser parser = new JsonParser();
+                    JsonObject jsonObject = parser.parse(responseString).getAsJsonObject();
+                    JsonObject authObject = (JsonObject) jsonObject.get("auth");
+                    vaultToken = authObject.get("client_token").getAsString();
+                }
+            }
+            HttpGet request = new HttpGet(String.format("https://%s/v1/database/creds/my-role", vaultDomain));
             request.addHeader("X-Vault-Token", vaultToken);
             final CloseableHttpClient httpClient = HttpClients.createDefault();
             String userName = "";
